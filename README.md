@@ -4,7 +4,7 @@
 
 A privacy-first chat application that leverages Chrome's Built-in AI APIs to enable branching conversations with intelligent context management—all processed locally on your device.
 
-## 🎯 The Problem We're Solving
+### 🎯 The Problem We're Solving
 
 Traditional chat applications force linear conversations, making it difficult to:
 - Explore multiple ideas or solutions simultaneously without losing context
