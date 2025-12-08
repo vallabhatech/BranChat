@@ -8,7 +8,7 @@ import { getDatabaseHealth } from './config/database';
 
 const app = express();
 
-// Security middleware
+// Security   middleware
 app.use(helmet());
 
 // CORS middleware
