@@ -2,7 +2,7 @@
 
 **Branching Conversations with Client-Side AI**
 
-A privacy-first chat application that leverages Chrome's Built-in AI APIs to enable branching conversations with intelligent context management—all processed locally on your device.
+A privacy-first chat application that leverages Chrome's Built-in AI APIs to enable branching conversations with intelligent context management—all processed locally on your device..
 
 ### 🎯 The Problem We're Solving
 
