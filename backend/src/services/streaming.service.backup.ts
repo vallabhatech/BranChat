@@ -325,9 +325,9 @@ export class StreamingService {
       this.handleClientDisconnection(clientId, 'client_close');
     });
 
-    response.on('error', (error) => {
+    response.on('error', (error: any) => {
       logger.error('SSE connection error', { clientId, error });
-      this.sendStructuredError(clientId, 'connection_error', error as Error);
+      this.sendStructuredError(clientId, 'connection_error', new Error(error.message || 'Connection error'));
       this.handleClientDisconnection(clientId, 'connection_error');
     });
 
@@ -594,29 +594,34 @@ export class StreamingService {
 export const streamingService = new StreamingService();
 
 // Set up periodic cleanup
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   streamingService.cleanupOldMetrics();
 }, 60 * 60 * 1000); // Every hour
 
 // Graceful shutdown handlers
+const cleanup = () => {
+  clearInterval(cleanupInterval);
+  streamingService.disconnectAllClients();
+};
+
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, disconnecting all streaming clients');
-  streamingService.disconnectAllClients();
+  cleanup();
 });
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, disconnecting all streaming clients');
-  streamingService.disconnectAllClients();
+  cleanup();
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
   logger.error('Unhandled Promise Rejection', { reason, promise });
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: Error) => {
   logger.error('Uncaught Exception', { error });
-  streamingService.disconnectAllClients();
+  cleanup();
   process.exit(1);
 });
