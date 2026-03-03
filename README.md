@@ -6,386 +6,308 @@
 ![Express](https://img.shields.io/badge/express-%3E%3D4.18.0-green.svg)
 ![MongoDB](https://img.shields.io/badge/mongodb-%3E%3D6.0-green.svg)
 
-## Problem Statement
-
-Traditional chat applications enforce linear conversation flows, creating significant limitations for complex discussions:
-
-- **Context Fragmentation**: Multiple topics cannot be explored simultaneously without losing conversational context
-- **Information Silos**: Sub-discussions become disconnected from the main conversation thread
-- **Privacy Concerns**: All conversational data is transmitted to third-party cloud services
-- **Network Dependency**: Application functionality becomes unavailable during connectivity issues
-- **Cost Management**: Cloud-based AI processing incurs ongoing operational expenses
-
-## Architectural Overview
-
-BranChat implements a hybrid AI execution model that prioritizes client-side processing while maintaining server-side fallback capabilities. The architecture enables branching conversations with intelligent context management while preserving user privacy.
-
-### System Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                        Frontend (React + TypeScript)                           │
-├─────────────────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────────────────────────┐  │
-│  │                    Chrome Built-in AI APIs (Client-Side)                    │  │
-│  │  ├─ Prompt API (Conversational AI)                                   │  │
-│  │  ├─ Summarizer API (Content Summarization)                            │  │
-│  │  └─ Writer API (Content Generation)                                 │  │
-│  │                      ┌─────────────────────────────────────────┐  │
-│  │                      │   Server-Sent Events (Streaming)      │  │
-│  │                      │   Local State Management           │  │
-│  │                      │   Context Isolation             │  │
-│  │                      └───────────────────────────────────────┘  │
-│  └─────────────────────────────────────────────────────────────────────────────┘  │
-│                              HTTP/HTTPS                               │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐  │
-│  │                        Backend (Node.js + Express)                         │  │
-│  │  ├─ REST API Server                                             │  │
-│  │  ├─ Rate Limiting & Security Middleware                            │  │
-│  │  ├─ Structured Logging & Monitoring                               │  │
-│  │  ├─ Health Check Endpoints                                      │  │
-│  │  └─ Database Layer (MongoDB)                                     │  │
-│  │                      ┌─────────────────────────────────────────┐  │
-│  │                      │   Google Gemini API (Fallback)        │  │
-  │  │                      │   Server-Side AI Processing      │  │
-  │  │                      │   Enhanced Capabilities             │  │
-  │  │                      └───────────────────────────────────────┘  │
-│  └─────────────────────────────────────────────────────────────────────────────┘
-│
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Core Components
-
-#### Frontend Architecture
-- **React 18** with TypeScript for type safety and maintainability
-- **Context Providers**: Centralized state management for chat and AI provider state
-- **Chrome AI Integration**: Direct API access to built-in AI capabilities
-- **Server-Sent Events**: Real-time streaming for responsive user experience
-- **Error Boundaries**: Comprehensive error handling and recovery mechanisms
-
-#### Backend Architecture
-- **Express.js** REST API server with middleware pipeline
-- **MongoDB** for persistent data storage with optimized indexing
-- **Winston** structured logging with correlation ID tracking
-- **Rate Limiting**: Tiered rate limiting for different endpoint types
-- **Security Headers**: Helmet.js for comprehensive security protection
-
-#### Data Layer
-- **Conversations**: Main conversation threads with metadata
-- **Messages**: Individual conversation messages with role and content
-- **Sub-chats**: Branched conversations with parent-child relationships
-- **Users**: Authentication and user management with guest support
-
-## Hybrid AI Execution Model
-
-### Client-Side Processing (Primary)
-
-When Chrome Built-in AI is available, BranChat processes all AI interactions locally:
-
-1. **Prompt API** handles conversational responses in both main and branch conversations
-2. **Summarizer API** automatically condenses branch discussions before merging
-3. **Writer API** generates conversation starters and content suggestions
-
-**Advantages:**
-- Complete privacy protection (data never leaves the device)
-- Zero network latency for AI responses
-- No operational costs for AI processing
-- Offline functionality regardless of internet connectivity
-
-### Server-Side Fallback (Secondary)
-
-When Chrome AI is unavailable or for enhanced capabilities:
-
-1. **Google Gemini API** provides server-side AI processing
-2. **Enhanced Capabilities**: Advanced reasoning and larger context windows
-3. **Automatic Fallback**: Seamless transition between providers
-- **Feature Parity**: Maintains full functionality when Chrome AI is unavailable
-
-**Fallback Triggers:**
-- Chrome browser not detected
-- Chrome AI APIs unavailable
-- Enhanced AI features required
-- User preference override
-
-### Provider Selection Logic
-
-```typescript
-// Provider Selection Algorithm
-if (chromeAI.isAvailable()) {
-  useChromeAI(); // Primary choice
-} else if (geminiAPI.isConfigured()) {
-  useGeminiAPI(); // Fallback option
-} else {
-  disableAIFeatures(); // Graceful degradation
-}
-```
-
-## Privacy-First Design
-
-### Data Protection Strategy
-
-**Client-Side Processing:**
-- All AI interactions using Chrome Built-in APIs remain on-device
-- No conversational data transmitted to external services
-- Local processing eliminates data exposure risks
-- User maintains complete control over their data
-
-**Server-Side Fallback:**
-- Minimal data transmission (only when Chrome AI is unavailable)
-- Explicit user consent required for server processing
-- Data retention policies enforced on server
-- Optional memory opt-in with granular controls
-
-### Privacy Features
-
-- **Local Processing**: AI responses generated locally when possible
-- **Data Minimization**: Only essential data transmitted to servers
-- **User Control**: Granular privacy settings and opt-in mechanisms
-- **Transparency**: Clear indication of processing location (client vs. server)
-
-### Security Considerations
-
-- **End-to-End Encryption**: All communications use HTTPS/TLS
-- **Input Validation**: Comprehensive input sanitization and validation
-- **Rate Limiting**: Protection against abuse and DoS attacks
-- **Access Control**: JWT-based authentication with role-based permissions
-- **Audit Logging**: Comprehensive logging for security monitoring
-
-## Scalability Considerations
-
-### Frontend Scalability
-
-**State Management:**
-- Context providers prevent prop drilling and optimize re-renders
-- Component isolation ensures efficient memory usage
-- Lazy loading reduces initial bundle size
-- React.memo prevents unnecessary component updates
-
-**Performance Optimization:**
-- Virtual scrolling for large conversation histories
-- Message pagination for memory efficiency
-- Debounced search and typing indicators
-- Optimized re-rendering patterns
-
-**Resource Management:**
-- Automatic cleanup of inactive connections
-- Memory monitoring and alerting
-- Graceful degradation under load
-- Efficient state synchronization
-
-### Backend Scalability
-
-**Database Optimization:**
-- Compound indexes for complex query patterns
-- Connection pooling for database efficiency
-- Query optimization and caching strategies
-- Horizontal scaling readiness
-
-**API Performance:**
-- Rate limiting prevents system overload
-- Request queuing for high-traffic scenarios
-- Load balancing readiness
-- Health checks for orchestration systems
-
-**Monitoring & Observability:**
-- Structured logging with correlation IDs
-- Real-time performance metrics
-- Health check endpoints for monitoring
-- Error tracking and alerting systems
-
-### Horizontal Scaling
-
-**Stateless Design:**
-- Session management handled via JWT tokens
-- No server-side session state dependencies
-- Easy to add additional server instances
-- Database connection pooling for efficiency
-
-**Database Scaling:**
-- MongoDB replica set support
-- Read/write separation for performance
-- Connection pooling for high availability
-- Index optimization for query performance
-
-**API Gateway:**
-- Load balancer ready architecture
-- Health check endpoints for traffic routing
-- Rate limiting at gateway level
-- SSL termination support
-
-## Trade-offs Made
-
-### Client-Side vs. Server-Side AI
-
-**Client-Side Benefits:**
-- ✅ Maximum privacy protection
-- ✅ Zero operational costs
-- ✅ Instant response times
-- ✅ Offline capability
-
-**Client-Side Limitations:**
-- ❌ Limited to Chrome browser users
-- ❌ Smaller model capabilities
-- ❌ Device resource constraints
-- ❌ No persistent AI state
-
-**Server-Side Benefits:**
-- ✅ Universal browser compatibility
-- ✅ Advanced model capabilities
-- ✅ Scalable infrastructure
-- ✅ Enhanced feature set
-
-**Server-Side Costs:**
-- ❌ API usage costs
-- ❌ Network latency
-- ❌ Privacy implications
-- ❌ Infrastructure overhead
-
-### Complexity vs. Simplicity
-
-**Chosen Approach:**
-- ✅ Simple configuration with environment variables
-- ✅ Modular middleware architecture
-- ✅ Comprehensive error handling
-- ✅ Extensive logging and monitoring
-
-**Alternative Approaches Considered:**
-- ❌ Complex microservices architecture (overkill for current scale)
-- ❌ Event-driven architecture (unnecessary complexity)
-- ❌ Multiple database systems (MongoDB sufficient)
-- ❌ Advanced caching layers (adds complexity)
-
-### Feature Set vs. Core Functionality
-
-**Core Features Implemented:**
-- ✅ Branching conversations
-- ✅ Chrome AI integration
-- ✅ Server fallback
-- ✅ Real-time streaming
-- ✅ Privacy controls
-
-**Advanced Features Deferred:**
-- ❌ Multi-provider AI support (planned for future)
-- ❌ Advanced analytics dashboard
-- ❌ Team collaboration features
-- ❌ Enterprise integrations
-- ❌ Advanced search and discovery
-- Custom AI model fine-tuning
-
-## Future Improvements
-
-### Short-Term (Next 3-6 months)
-
-**AI Provider Expansion:**
-- OpenAI API integration for broader browser support
-- Anthropic Claude API for advanced reasoning
-- Local LLM hosting for complete data sovereignty
-- Provider performance comparison and selection
-
-**Enhanced Features:**
-- Advanced conversation analytics and insights
-- Team collaboration with shared branching
-- Voice input/output capabilities
-- Advanced search and discovery features
-- Custom AI model fine-tuning
-
-**Technical Improvements:**
-- Performance optimization and caching strategies
-- Advanced error handling and recovery
-- Comprehensive testing and quality assurance
-- Documentation and developer experience improvements
-
-### Medium-Term (6-12 months)
-
-**Platform Expansion:**
-- Desktop application development
-- Mobile application (React Native)
-- Progressive Web App (PWA) enhancements
-- Browser extension integration
-- API versioning and backward compatibility
-- Team management and permissions
-
-**Enterprise Features:**
-- SSO integration (SAML, OAuth 2.0)
-- Advanced security and compliance
-- Team management and permissions
-- Advanced analytics and reporting
-- Custom branding and white-labeling
-
-**Infrastructure:**
-- Kubernetes deployment manifests
-- CI/CD pipeline automation
-- Infrastructure as Code (IaC)
-- Multi-region deployment
-- Disaster recovery and backup strategies
-
-### Long-Term (12+ months)
-
-**AI Capabilities:**
-- Custom model training and fine-tuning
-- Advanced reasoning and analysis
-- Multi-modal AI (text, voice, image)
-- Knowledge base integration
-- Workflow automation features
-
-**Ecosystem Integration:**
-- Third-party service integrations
-- Plugin system for extensibility
-- API marketplace for extensions
-- Developer SDK and documentation
-- Community contributions and governance
-
-**Advanced Architecture:**
-- Microservices architecture for scale
-- Event-driven communication patterns
-- Advanced caching and optimization
-- Real-time collaboration features
-- Global deployment and CDN optimization
-
-## Technical Specifications
-
-### System Requirements
-
-**Frontend:**
+**Branching Conversations with Client-Side AI**
+
+A privacy-first chat application that leverages Chrome's Built-in AI APIs to enable branching conversations with intelligent context management—all processed locally on your device.
+
+### 🎯 The Problem We're Solving
+
+Traditional chat applications force linear conversations, making it difficult to:
+- Explore multiple ideas or solutions simultaneously without losing context
+- Organize complex discussions with multiple sub-topics
+- Maintain privacy when sensitive information is involved (everything goes to the cloud)
+- Work offline or with unreliable network connections
+- Manage costs associated with cloud-based AI processing
+
+**BranChat solves these problems** by introducing branching conversations powered by Chrome's Built-in AI APIs, enabling you to create focused sub-discussions that branch off from any message, process everything locally for privacy, and work seamlessly offline.
+
+## ✨ Key Features
+
+- **Branching Conversations**: Create focused sub-chats from any message to explore ideas without cluttering the main thread
+- **Chrome Built-in AI**: Leverage Prompt, Summarizer, and Writer APIs for on-device processing
+- **Privacy-First**: All AI processing happens locally in your browser
+- **Offline Support**: Works without internet connection when using Chrome AI
+- **Smart Merging**: Intelligently merge sub-chats back into main conversations with summaries
+- **Server Fallback**: Automatic fallback to Google Gemini API when Chrome AI is unavailable
+- **Real-time Streaming**: Stream responses for better user experience
+- **Memory System**: Optional semantic memory for enhanced context
+
+## 🏗️ Architecture
+
+### Frontend (React + TypeScript)
+- **React 18** with TypeScript for type safety
+- **Vite** for fast development and building
+- **Tailwind CSS** for styling
+- **Chrome AI APIs** for client-side AI processing
+- **Server-Sent Events** for real-time streaming
+
+### Backend (Node.js + Express)
+- **Express.js** REST API server
+- **MongoDB** for data persistence
+- **Elasticsearch** for semantic memory (optional)
+- **Google Gemini API** for server-side AI fallback
+- **JWT** for authentication
+- **Winston** for structured logging
+
+### AI Integration
+- **Chrome Built-in AI APIs** (Prompt, Summarizer, Writer)
+- **Google Gemini API** (server-side fallback)
+- **Provider Abstraction** for easy extensibility
+- **Automatic Provider Selection** based on availability
+
+## 🚀 Quick Start
+
+### Prerequisites
 - Node.js 18.0.0 or higher
-- React 18.0.0 or higher
-- TypeScript 5.0 or higher
-- Chrome 127+ (for full AI features)
-- Modern web browser with ES2020+ support
-
-**Backend:**
-- Node.js 18.0.0 or higher
-- Express 4.18.0 or higher
 - MongoDB 6.0 or higher
-- Google Gemini API access (optional fallback)
+- Google Chrome browser (for Chrome AI features)
+- Google Gemini API key (for server fallback)
 
-**Development:**
-- Git version control
-- npm or yarn package manager
-- Docker containerization support
-- Modern IDE with TypeScript support
+### Installation
 
-### Performance Targets
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/branchat.git
+   cd branchat
+   ```
 
-**Frontend:**
-- Initial load: < 3 seconds
-- Message rendering: < 100ms
-- Branch creation: < 200ms
-- Memory usage: < 100MB
+2. **Install dependencies**
+   ```bash
+   # Install backend dependencies
+   cd backend
+   npm install
+   
+   # Install frontend dependencies
+   cd ../frontend
+   npm install
+   ```
 
-**Backend:**
-- API response time: < 500ms
-- Database query: < 100ms
-- Concurrent users: 1000+
-- Memory usage: < 512MB
+3. **Environment Setup**
+   ```bash
+   # Backend environment
+   cd backend
+   cp .env.example .env
+   # Edit .env with your configuration
+   # Add your Gemini API key: GEMINI_API_KEY=your-key-here
+   
+   # Frontend environment
+   cd ../frontend
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
 
-**Infrastructure:**
-- Uptime: 99.9%
-- Response time: < 1 second
-- Error rate: < 0.1%
-- Scalability: 10,000+ concurrent users
+4. **Start the application**
+   ```bash
+   # Start backend server
+   cd backend
+   npm run dev
+   
+   # Start frontend development server
+   cd ../frontend
+   npm run dev
+   ```
+
+5. **Access the application**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:3001
+   - Health Check: http://localhost:3001/health
+
+## 📱 Browser Compatibility
+
+| Browser | Chrome AI Support | Status |
+|---------|------------------|--------|
+| Chrome 127+ | ✅ Full Support | Recommended |
+| Edge 127+ | ✅ Full Support | Recommended |
+| Firefox | ❌ No Support | Server Fallback |
+| Safari | ❌ No Support | Server Fallback |
+
+## 🔧 Configuration
+
+### Environment Variables
+
+#### Backend (.env)
+```bash
+# Server Configuration
+NODE_ENV=development
+PORT=3001
+
+# Database
+MONGODB_URI=mongodb://localhost:27017/branchat
+
+# AI Services
+GEMINI_API_KEY=your-gemini-api-key-here
+
+# Authentication
+JWT_SECRET=your-jwt-secret-here
+JWT_EXPIRES_IN=7d
+
+# Optional: Elasticsearch for Memory System
+ELASTIC_URL=http://localhost:9200
+ELASTIC_INDEX=branchat_memory
+```
+
+#### Frontend (.env)
+```bash
+# API Configuration
+VITE_API_URL=http://localhost:3001/api
+
+# Chrome AI Configuration
+VITE_ENABLE_CHROME_AI=true
+VITE_CHROME_AI_DEBUG=false
+
+# Feature Flags
+VITE_ENABLE_MEMORY=true
+VITE_ENABLE_STREAMING=true
+```
+
+## 📊 API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `GET /api/auth/me` - Get current user
+
+### Conversations
+- `GET /api/conversations` - List conversations
+- `POST /api/conversations` - Create conversation
+- `GET /api/conversations/:id` - Get conversation details
+- `DELETE /api/conversations/:id` - Delete conversation
+
+### Messages
+- `GET /api/conversations/:id/messages` - Get messages
+- `POST /api/conversations/:id/messages` - Send message
+- `GET /api/conversations/:id/messages/stream` - Stream messages
+
+### Sub-chats
+- `GET /api/subchats` - List sub-chats
+- `POST /api/subchats` - Create sub-chat
+- `GET /api/subchats/:id` - Get sub-chat details
+- `POST /api/subchats/:id/merge` - Merge sub-chat
+- `POST /api/subchats/:id/messages` - Send sub-chat message
+
+### Health Check
+- `GET /health` - Basic health check
+- `GET /health/ready` - Readiness probe
+- `GET /health/live` - Liveness probe
+- `GET /health/detailed` - Detailed health information
+
+## 🔒 Security Features
+
+- **Rate Limiting**: Configurable rate limits for different endpoints
+- **Security Headers**: Helmet.js for comprehensive security headers
+- **Input Validation**: Request validation and sanitization
+- **Authentication**: JWT-based authentication with secure defaults
+- **CORS**: Configurable CORS policies
+- **Request Logging**: Structured logging for security monitoring
+
+## 📈 Monitoring & Observability
+
+### Health Checks
+- **Basic Health**: Service availability and basic metrics
+- **Readiness Probe**: Database connectivity check
+- **Liveness Probe**: Process health check
+- **Detailed Health**: Comprehensive system information
+
+### Logging
+- **Structured Logging**: JSON-formatted logs with correlation IDs
+- **Request Timing**: Automatic request duration tracking
+- **Error Tracking**: Comprehensive error logging and reporting
+- **Security Events**: Security-related event logging
+
+### Metrics
+- **Request Metrics**: Request count, duration, error rates
+- **AI Provider Metrics**: Provider availability and performance
+- **Database Metrics**: Connection status and query performance
+- **System Metrics**: Memory usage, CPU, and uptime
+
+## 🧪 Testing
+
+### Running Tests
+```bash
+# Backend tests
+cd backend
+npm test
+
+# Frontend tests
+cd frontend
+npm test
+
+# Integration tests
+npm run test:integration
+```
+
+### Test Coverage
+- Unit tests for core functionality
+- Integration tests for API endpoints
+- E2E tests for critical user flows
+- Performance tests for load testing
+
+## 🚀 Deployment
+
+### Production Deployment
+```bash
+# Build frontend
+cd frontend
+npm run build
+
+# Build backend
+cd ../backend
+npm run build
+
+# Start production server
+npm start
+```
+
+### Docker Deployment
+```bash
+# Build Docker image
+docker build -t branchat .
+
+# Run with Docker Compose
+docker-compose up -d
+```
+
+### Environment Configuration
+- **Development**: Local development with hot reload
+- **Staging**: Pre-production testing environment
+- **Production**: Optimized for production use
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Workflow
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+### Code Style
+- TypeScript for type safety
+- ESLint for code quality
+- Prettier for code formatting
+- Conventional Commits for commit messages
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **Chrome Built-in AI Team** for the amazing AI APIs
+- **Google Gemini Team** for the powerful language model
+- **Express.js Team** for the robust web framework
+- **MongoDB Team** for the flexible database
+- **React Team** for the excellent UI library
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/your-username/branchat/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/branchat/discussions)
+- **Email**: support@branchat.dev
 
 ---
 
-**BranChat** represents a new approach to conversational AI interfaces, prioritizing user privacy and local processing while maintaining the flexibility of server-side fallback options. The hybrid architecture ensures optimal user experience across different environments while maintaining strong security and performance characteristics.
+**Built with ❤️ for better conversations**
