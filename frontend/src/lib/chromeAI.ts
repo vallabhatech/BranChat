@@ -34,11 +34,8 @@ class ChromeAIService {
       return this.status;
     }
 
-    console.log('🤖 Chrome AI: Initializing...');
-
     // Check if Chrome AI is available
     if (!window.ai) {
-      console.log('❌ Chrome AI: Not available (window.ai is undefined)');
       this.status.provider = 'server-fallback';
       this.initialized = true;
       return this.status;
@@ -48,33 +45,26 @@ class ChromeAIService {
       // Check Prompt API (Language Model)
       const promptCapabilities = await window.ai.languageModel.capabilities();
       this.status.promptAPI = promptCapabilities.available !== 'no';
-      console.log('🤖 Chrome AI: Prompt API -', this.status.promptAPI ? '✅ Available' : '❌ Not available');
 
       // Check Summarizer API
       const summarizerCapabilities = await window.ai.summarizer.capabilities();
       this.status.summarizerAPI = summarizerCapabilities.available !== 'no';
-      console.log('🤖 Chrome AI: Summarizer API -', this.status.summarizerAPI ? '✅ Available' : '❌ Not available');
 
       // Check Writer API
       const writerCapabilities = await window.ai.writer.capabilities();
       this.status.writerAPI = writerCapabilities.available !== 'no';
-      console.log('🤖 Chrome AI: Writer API -', this.status.writerAPI ? '✅ Available' : '❌ Not available');
 
       // Check Rewriter API
       const rewriterCapabilities = await window.ai.rewriter.capabilities();
       this.status.rewriterAPI = rewriterCapabilities.available !== 'no';
-      console.log('🤖 Chrome AI: Rewriter API -', this.status.rewriterAPI ? '✅ Available' : '❌ Not available');
 
       // Determine provider
       if (this.status.promptAPI || this.status.summarizerAPI || this.status.writerAPI) {
         this.status.provider = 'chrome-builtin';
-        console.log('✅ Chrome AI: Using Chrome Built-in AI');
       } else {
         this.status.provider = 'server-fallback';
-        console.log('⚠️ Chrome AI: Falling back to server API');
       }
     } catch (error) {
-      console.error('❌ Chrome AI: Error checking capabilities:', error);
       this.status.provider = 'server-fallback';
     }
 
@@ -94,7 +84,6 @@ class ChromeAIService {
    */
   async createSession(systemPrompt?: string): Promise<any | null> {
     if (!this.status.promptAPI || !window.ai) {
-      console.log('⚠️ Chrome AI: Prompt API not available, use server fallback');
       return null;
     }
 
@@ -103,10 +92,8 @@ class ChromeAIService {
         systemPrompt: systemPrompt || 'You are a helpful AI assistant for branching conversations.',
         temperature: 0.7,
       });
-      console.log('✅ Chrome AI: Language model session created');
       return this.languageModel;
     } catch (error) {
-      console.error('❌ Chrome AI: Failed to create language model:', error);
       return null;
     }
   }
@@ -129,12 +116,9 @@ class ChromeAIService {
         return null;
       }
 
-      console.log('🤖 Chrome AI: Generating response with Prompt API...');
       const response = await this.languageModel.prompt(prompt);
-      console.log('✅ Chrome AI: Response generated');
       return response;
     } catch (error) {
-      console.error('❌ Chrome AI: Error generating response:', error);
       return null;
     }
   }
@@ -161,7 +145,6 @@ class ChromeAIService {
         return false;
       }
 
-      console.log('🤖 Chrome AI: Starting streaming response...');
       const stream = this.languageModel.promptStreaming(prompt);
       const reader = stream.getReader();
 
@@ -173,10 +156,8 @@ class ChromeAIService {
         onChunk(chunk);
       }
 
-      console.log('✅ Chrome AI: Streaming complete');
       return true;
     } catch (error) {
-      console.error('❌ Chrome AI: Error in streaming response:', error);
       return false;
     }
   }
@@ -196,21 +177,17 @@ class ChromeAIService {
     }
 
     try {
-      console.log('🤖 Chrome AI: Creating summarizer...');
       const summarizer = await window.ai.summarizer.create({
         type: options?.type || 'key-points',
         format: 'markdown',
         length: options?.length || 'medium',
       });
 
-      console.log('🤖 Chrome AI: Summarizing text...');
       const summary = await summarizer.summarize(text);
       summarizer.destroy();
 
-      console.log('✅ Chrome AI: Summary generated');
       return summary;
     } catch (error) {
-      console.error('❌ Chrome AI: Error summarizing:', error);
       return null;
     }
   }
@@ -230,21 +207,17 @@ class ChromeAIService {
     }
 
     try {
-      console.log('🤖 Chrome AI: Creating writer...');
       const writer = await window.ai.writer.create({
         tone: options?.tone || 'neutral',
         format: 'markdown',
         length: options?.length || 'medium',
       });
 
-      console.log('🤖 Chrome AI: Writing content...');
       const content = await writer.write(prompt);
       writer.destroy();
 
-      console.log('✅ Chrome AI: Content generated');
       return content;
     } catch (error) {
-      console.error('❌ Chrome AI: Error writing:', error);
       return null;
     }
   }
@@ -264,21 +237,17 @@ class ChromeAIService {
     }
 
     try {
-      console.log('🤖 Chrome AI: Creating rewriter...');
       const rewriter = await window.ai.rewriter.create({
         tone: options?.tone || 'as-is',
         format: 'as-is',
         length: options?.length || 'as-is',
       });
 
-      console.log('🤖 Chrome AI: Rewriting text...');
       const rewritten = await rewriter.rewrite(text);
       rewriter.destroy();
 
-      console.log('✅ Chrome AI: Text rewritten');
       return rewritten;
     } catch (error) {
-      console.error('❌ Chrome AI: Error rewriting:', error);
       return null;
     }
   }

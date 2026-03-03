@@ -98,8 +98,7 @@ class ApiService {
   }
 
   async sendMessage(conversationId: string, content: string): Promise<{ data: { userMessage: Message; assistantMessage: Message } }> {
-    console.log('🌐 API Service: Sending message to conversation:', conversationId);
-    
+        
     // ============================================================
     // CHROME BUILT-IN AI - PROMPT API
     // ============================================================
@@ -107,12 +106,10 @@ class ApiService {
     // This is the PRIMARY method for generating conversation responses
     // Benefits: Privacy (on-device), Speed (no network), Cost (free), Offline capable
     if (this.enableChromeAI) {
-      console.log('🤖 API Service: Attempting Chrome Built-in Prompt API...');
-      const aiResponse = await chromeAI.generateResponse(content);
+            const aiResponse = await chromeAI.generateResponse(content);
       
       if (aiResponse) {
-        console.log('✅ API Service: Chrome Prompt API response received (on-device)');
-        // Create message objects for Chrome AI response
+                // Create message objects for Chrome AI response
         const userMessage: Message = {
           id: `user-${Date.now()}`,
           conversation_id: conversationId,
@@ -143,29 +140,22 @@ class ApiService {
           },
         };
       }
-      console.log('⚠️ API Service: Chrome Prompt API not available, falling back to server...');
-    }
+          }
     
     // Fallback to backend API
     try {
-      console.log('🌐 API Service: Trying backend API for sendMessage...');
-      const result = await this.request<{ data: { userMessage: Message; assistantMessage: Message } }>(`/conversations/${conversationId}/messages`, {
+            const result = await this.request<{ data: { userMessage: Message; assistantMessage: Message } }>(`/conversations/${conversationId}/messages`, {
         method: 'POST',
         body: JSON.stringify({ content, role: 'user' }),
       });
-      console.log('🌐 API Service: Backend sendMessage succeeded:', result);
-      return result;
+            return result;
     } catch (error) {
-      console.log('🌐 API Service: Backend sendMessage failed:', error.message);
-      if (error instanceof Error && error.message === 'API_FALLBACK') {
-        console.log('🌐 API Service: Falling back to mock API for sendMessage...');
-        const { mockApi } = await import('../lib/mockApi');
+            if (error instanceof Error && error.message === 'API_FALLBACK') {
+                const { mockApi } = await import('../lib/mockApi');
         const mockResult = await mockApi.sendMessage(conversationId, content);
-        console.log('🌐 API Service: Mock sendMessage result:', mockResult);
-        return mockResult;
+                return mockResult;
       }
-      console.error('🌐 API Service: Non-fallback sendMessage error:', error);
-      throw error;
+            throw error;
     }
   }
 
@@ -192,8 +182,7 @@ class ApiService {
     // This automatically creates key-points summaries of branch discussions
     // Benefits: Automatic (no manual work), Fast (instant), Private (on-device)
     if (this.enableChromeAI) {
-      console.log('🤖 API Service: Attempting Chrome Built-in Summarizer API for merge...');
-      
+            
       try {
         // Get subchat messages to summarize
         const subchatData = await this.request<{ data: { messages: Message[] } }>(`/subchats/${subChatId}`);
@@ -210,8 +199,7 @@ class ApiService {
         });
         
         if (summary) {
-          console.log('✅ API Service: Chrome Summarizer API generated summary (on-device)');
-          return {
+                    return {
             data: {
               summary: {
                 summary,
@@ -224,8 +212,7 @@ class ApiService {
           };
         }
       } catch (error) {
-        console.log('⚠️ API Service: Chrome Summarizer API failed, falling back to server:', error);
-      }
+              }
     }
     
     // Fallback to backend API
@@ -330,8 +317,7 @@ class ApiService {
           token = guestResponse.data.token;
           localStorage.setItem('token', token);
         } catch (guestError) {
-          console.warn('Failed to create guest token:', guestError);
-        }
+                  }
       }
 
       return await this.request('/ai/search', {

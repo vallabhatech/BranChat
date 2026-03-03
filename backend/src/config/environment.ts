@@ -13,13 +13,13 @@ const envSchema = Joi.object({
   MONGODB_URI: Joi.string().required(),
 
   // Elastic Search
-  ELASTIC_URL: Joi.string().required(),
+  ELASTIC_URL: Joi.string().optional(),
   ELASTIC_USERNAME: Joi.string().optional(),
   ELASTIC_PASSWORD: Joi.string().optional(),
   ELASTIC_API_KEY: Joi.string().optional(),
 
   // Gemini AI
-  GEMINI_API_KEY: Joi.string().required(),
+  GEMINI_API_KEY: Joi.string().optional(),
   GEMINI_MODEL: Joi.string().default('gemini-1.5-pro'),
   GEMINI_EMBEDDING_MODEL: Joi.string().default('text-embedding-004'),
 

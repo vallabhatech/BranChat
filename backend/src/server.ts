@@ -2,6 +2,7 @@ import app from './app';
 import { config } from './config/environment';
 import { logger } from './utils/logger';
 import { initializeDatabases, closeDatabases } from './config/database';
+import { EnvironmentValidator } from './services/environmentValidator.service';
 
 // Initialize databases before starting server
 async function startServer() {
