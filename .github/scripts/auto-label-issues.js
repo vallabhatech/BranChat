@@ -1,17 +1,8 @@
 /**
  * Auto Label Issues - Main Classification Logic
- * 
- * This file contains the main logic for automatically labeling GitHub Issues.
+ * * This file contains the main logic for automatically labeling GitHub Issues.
  * It fetches issues, calculates confidence scores, applies labels, and handles
  * all the classification logic.
- * 
- * Architecture:
- * - fetchIssues(): Fetch issues from GitHub with pagination
- * - calculateConfidence(): Calculate confidence score for each label
- * - resolveConflicts(): Resolve conflicting labels
- * - applyLabels(): Apply labels to an issue
- * - removeLabel(): Remove a label from an issue
- * - autoLabelIssues(): Main entry point
  */
 
 // =============================================================================
@@ -92,12 +83,8 @@ function calculateConfidence(label, issue, rules) {
     maxScore += 30;
   }
   
-  // Normalize score to 0-100
-  if (maxScore > 0) {
-    score = Math.min(100, (score / maxScore) * 100);
-  }
-  
-  return Math.round(score);
+  // Use raw weighted score instead of percentage normalization
+  return Math.min(100, Math.round(score));
 }
 
 /**
@@ -375,18 +362,9 @@ async function autoLabelIssues(github, context, config, rules) {
       }
     }
     
-    // Sort by priority and confidence
+    // Sort purely by confidence (highest first) up to max labels limit
     const sortedLabels = Object.entries(filteredLabels)
-      .sort((a, b) => {
-        // First by priority (lower = higher priority)
-        const priorityA = rules.LABELS[a[0]].priority;
-        const priorityB = rules.LABELS[b[0]].priority;
-        if (priorityA !== priorityB) {
-          return priorityA - priorityB;
-        }
-        // Then by confidence (higher = better)
-        return b[1] - a[1];
-      })
+      .sort((a, b) => b[1] - a[1])
       .slice(0, config.maxLabelsPerIssue)
       .map(([label]) => label);
     
