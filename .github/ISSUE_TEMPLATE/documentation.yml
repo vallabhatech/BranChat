@@ -1,0 +1,30 @@
+name: Documentation
+description: Request an improvement or fix for the documentation.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: area
+    attributes:
+      label: Documentation Area
+      description: Which part of the docs is affected?
+      placeholder: "README, Deployment, API usage, etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is wrong or missing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested Improvement
+      description: What would you change/add?
+    validations:
+      required: true
+

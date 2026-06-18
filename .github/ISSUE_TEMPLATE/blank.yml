@@ -1,0 +1,10 @@
+name: Maintainers - Blank
+description: Blank issue template (maintainers only).
+title: ""
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "Use this only if you are a maintainer. Add details in the issue description above."
+

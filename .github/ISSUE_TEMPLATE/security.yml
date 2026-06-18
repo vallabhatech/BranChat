@@ -1,0 +1,37 @@
+name: Security
+description: Report a security vulnerability.
+title: "[Security]: "
+labels: ["security"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Briefly describe the vulnerability.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What is the potential impact?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce (optional)
+      description: If safe, include reproduction steps.
+    validations:
+      required: false
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional Details
+      description: Any relevant logs, screenshots, affected versions, or links.
+    validations:
+      required: true
+

@@ -1,0 +1,20 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Readme
+    url: https://github.com/$(github.repository)/blob/main/README.md
+  - name: Discussions
+    url: https://github.com/$(github.repository)/discussions
+  - name: README (English enhanced)
+    url: https://github.com/$(github.repository)/blob/main/README.enhanced.md
+issue_templates:
+  - name: Bug Report
+    url: bug_report.yml
+  - name: Feature Request
+    url: feature_request.yml
+  - name: Documentation
+    url: documentation.yml
+  - name: Security
+    url: security.yml
+  - name: Maintainers - Blank
+    url: blank.yml
+
