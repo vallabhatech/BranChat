@@ -1,25 +1,15 @@
 /**
  * Auto Label Issues - Rules Configuration
- * 
- * This file contains all label definitions, classification rules,
+ * * This file contains all label definitions, classification rules,
  * and conflict resolution logic for the auto-labeling workflow.
- * 
- * Architecture:
- * - LABELS: All label definitions with keywords and patterns
- * - CONFLICTING_LABELS: Groups of mutually exclusive labels
- * - loadRules(): Export function to load rules
  */
 
 // =============================================================================
 // LABEL DEFINITIONS
 // =============================================================================
-// All available labels with their classification rules
-// =============================================================================
 
 const LABELS = {
   // Core Issue Types
-  // Only bug, feature, and question are mutually exclusive
-  // documentation and enhancement can be combined with other labels
   bug: {
     category: 'core',
     priority: 1,
@@ -85,7 +75,6 @@ const LABELS = {
     description: 'Question or support request'
   },
   
-  // These can be combined with core types
   enhancement: {
     category: 'core',
     priority: 2,
@@ -122,7 +111,6 @@ const LABELS = {
     description: 'Improvements to documentation'
   },
   
-  // Technical Areas
   frontend: {
     category: 'technical',
     priority: 3,
@@ -196,7 +184,6 @@ const LABELS = {
     description: 'Database or data storage issue'
   },
   
-  // Authentication - focused on auth mechanisms only
   authentication: {
     category: 'technical',
     priority: 3,
@@ -253,8 +240,6 @@ const LABELS = {
     description: 'User experience or usability issue'
   },
   
-  // Engineering Categories
-  // Security - requires stronger evidence (specific security terms)
   security: {
     category: 'engineering',
     priority: 4,
@@ -357,11 +342,10 @@ const LABELS = {
     description: 'CI/CD or build automation issue'
   },
   
-  // Workflow Status
   triage: {
     category: 'status',
     priority: 5,
-    autoApply: true, // Applied when no meaningful labels detected
+    autoApply: true,
     description: 'Issue needs triage'
   },
   
@@ -375,7 +359,7 @@ const LABELS = {
   'in-progress': {
     category: 'status',
     priority: 5,
-    autoApply: false, // Applied manually
+    autoApply: false,
     description: 'Issue is being worked on'
   },
   
@@ -396,8 +380,6 @@ const LABELS = {
     description: 'Issue is blocked by another issue or dependency'
   },
   
-  // Community Labels
-  // Good First Issue - requires extremely high confidence and specific criteria
   'good first issue': {
     category: 'community',
     priority: 6,
@@ -433,18 +415,17 @@ const LABELS = {
     description: 'Help needed from community'
   },
   
-  // Resolution Labels
   duplicate: {
     category: 'resolution',
     priority: 7,
-    autoApply: false, // Applied manually
+    autoApply: false,
     description: 'Duplicate of another issue'
   },
   
   wontfix: {
     category: 'resolution',
     priority: 7,
-    autoApply: false, // Applied manually
+    autoApply: false,
     description: 'Issue will not be fixed'
   }
 };
@@ -452,18 +433,16 @@ const LABELS = {
 // =============================================================================
 // CONFLICTING LABELS
 // =============================================================================
-// Labels that should not be applied together
-// =============================================================================
 
 const CONFLICTING_LABELS = [
-  // Core types - only bug, feature, question are mutually exclusive
+  // Core types - only one of these should exist
   ['bug', 'feature', 'question'],
   
   // Resolution labels
   ['duplicate', 'wontfix'],
   
-  // Status labels
-  ['triage', 'needs-review', 'in-progress', 'blocked'],
+  // Only triage should conflict with everything else
+  ['triage']
 ];
 
 // =============================================================================
