@@ -1,0 +1,876 @@
+name: Auto Label Issues
+
+# =============================================================================
+# Auto Label Issues Workflow
+# =============================================================================
+# This workflow automatically analyzes GitHub Issues and applies appropriate
+# labels based on the issue content (title, body, and existing labels).
+#
+# Features:
+# - Manual trigger via workflow_dispatch
+# - Confidence-based classification
+# - Multiple label support
+# - Idempotent operations (safe to re-run)
+# - Rate limit handling
+# - Pagination support for large repositories
+# - Detailed logging for debugging
+#
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run mode (no labels applied)'
+        required: false
+        type: boolean
+        default: false
+      limit:
+        description: 'Maximum number of issues to process (0 for all)'
+        required: false
+        type: number
+        default: 50
+      since:
+        description: 'Only process issues created since this date (YYYY-MM-DD)'
+        required: false
+        type: string
+        default: ''
+      remove_triage:
+        description: 'Remove "triage" label when other labels are applied'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  auto-label:
+    name: Auto Label Issues
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Auto Label Issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // =============================================================================
+            // CONFIGURATION
+            // =============================================================================
+            // Centralized rules configuration for easy maintenance and extension
+            // =============================================================================
+            
+            const CONFIG = {
+              // Workflow settings from inputs
+              dryRun: ${{ inputs.dry_run }},
+              limit: ${{ inputs.limit }},
+              since: ${{ inputs.since }},
+              removeTriage: ${{ inputs.remove_triage }},
+              
+              // Confidence threshold for label application (0-100)
+              confidenceThreshold: 60,
+              
+              // Maximum labels to apply per issue
+              maxLabelsPerIssue: 5,
+              
+              // Whether to log detailed information
+              verboseLogging: true,
+              
+              // Rate limit handling
+              maxRetries: 3,
+              retryDelay: 1000, // ms
+            };
+            
+            // =============================================================================
+            // LABEL DEFINITIONS
+            // =============================================================================
+            // All available labels with their classification rules
+            // =============================================================================
+            
+            const LABELS = {
+              // Core Issue Types
+              bug: {
+                category: 'core',
+                priority: 1,
+                keywords: [
+                  'bug', 'crash', 'error', 'exception', 'fail', 'failure',
+                  'broken', 'incorrect', 'wrong', 'regression', 'not working',
+                  'doesn\'t work', 'unexpected', 'unexpected behavior', 'defect'
+                ],
+                patterns: [
+                  /crash/i,
+                  /error/i,
+                  /exception/i,
+                  /fail/i,
+                  /broken/i,
+                  /incorrect/i,
+                  /regression/i,
+                  /doesn't work/i,
+                  /not working/i
+                ],
+                description: 'Something isn\'t working'
+              },
+              
+              feature: {
+                category: 'core',
+                priority: 1,
+                keywords: [
+                  'feature', 'new', 'add', 'implement', 'support', 'capability',
+                  'request', 'proposal', 'new feature', 'new functionality'
+                ],
+                patterns: [
+                  /feature request/i,
+                  /new feature/i,
+                  /add support for/i,
+                  /implement/i,
+                  /new capability/i,
+                  /would be nice/i,
+                  /it would be great/i
+                ],
+                description: 'New functionality or feature request'
+              },
+              
+              enhancement: {
+                category: 'core',
+                priority: 1,
+                keywords: [
+                  'enhancement', 'improve', 'improvement', 'optimize', 'better',
+                  'enhance', 'refine', 'polish', 'upgrade', 'usability'
+                ],
+                patterns: [
+                  /enhancement/i,
+                  /improve/i,
+                  /optimization/i,
+                  /make it better/i,
+                  /enhance/i,
+                  /usability/i
+                ],
+                description: 'Improvement to existing functionality'
+              },
+              
+              documentation: {
+                category: 'core',
+                priority: 1,
+                keywords: [
+                  'documentation', 'docs', 'readme', 'guide', 'tutorial',
+                  'document', 'api docs', 'missing docs', 'outdated docs'
+                ],
+                patterns: [
+                  /documentation/i,
+                  /readme/i,
+                  /guide/i,
+                  /tutorial/i,
+                  /api docs/i,
+                  /missing documentation/i
+                ],
+                description: 'Improvements to documentation'
+              },
+              
+              question: {
+                category: 'core',
+                priority: 1,
+                keywords: [
+                  'question', 'help', 'how to', 'how do i', 'clarification',
+                  'support', 'asking', 'wondering', 'confused'
+                ],
+                patterns: [
+                  /\?$/,
+                  /how do i/i,
+                  /how to/i,
+                  /question/i,
+                  /help/i,
+                  /clarification/i,
+                  /can someone/i
+                ],
+                description: 'Question or support request'
+              },
+              
+              // Technical Areas
+              frontend: {
+                category: 'technical',
+                priority: 2,
+                keywords: [
+                  'frontend', 'react', 'vue', 'angular', 'ui', 'component',
+                  'client', 'browser', 'css', 'html', 'javascript', 'typescript',
+                  'interface', 'view', 'page', 'screen'
+                ],
+                patterns: [
+                  /frontend/i,
+                  /react/i,
+                  /vue/i,
+                  /angular/i,
+                  /ui component/i,
+                  /client.?side/i,
+                  /browser/i
+                ],
+                description: 'Frontend or client-side issue'
+              },
+              
+              backend: {
+                category: 'technical',
+                priority: 2,
+                keywords: [
+                  'backend', 'server', 'api', 'service', 'controller',
+                  'business logic', 'server-side', 'endpoint', 'microservice'
+                ],
+                patterns: [
+                  /backend/i,
+                  /server.?side/i,
+                  /service/i,
+                  /controller/i,
+                  /business logic/i
+                ],
+                description: 'Backend or server-side issue'
+              },
+              
+              api: {
+                category: 'technical',
+                priority: 2,
+                keywords: [
+                  'api', 'rest', 'graphql', 'endpoint', 'request', 'response',
+                  'http', 'webhook', 'integration', 'sdk', 'client library'
+                ],
+                patterns: [
+                  /api/i,
+                  /rest/i,
+                  /graphql/i,
+                  /endpoint/i,
+                  /webhook/i,
+                  /http/i
+                ],
+                description: 'API or integration issue'
+              },
+              
+              database: {
+                category: 'technical',
+                priority: 2,
+                keywords: [
+                  'database', 'db', 'sql', 'nosql', 'migration', 'schema',
+                  'query', 'index', 'mongodb', 'postgres', 'mysql', 'redis'
+                ],
+                patterns: [
+                  /database/i,
+                  /migration/i,
+                  /schema/i,
+                  /query/i,
+                  /mongodb/i,
+                  /postgres/i,
+                  /mysql/i
+                ],
+                description: 'Database or data storage issue'
+              },
+              
+              authentication: {
+                category: 'technical',
+                priority: 2,
+                keywords: [
+                  'auth', 'authentication', 'login', 'signup', 'oauth', 'jwt',
+                  'session', 'permission', 'authorization', 'access', 'security'
+                ],
+                patterns: [
+                  /auth/i,
+                  /login/i,
+                  /signup/i,
+                  /oauth/i,
+                  /jwt/i,
+                  /permission/i,
+                  /authorization/i
+                ],
+                description: 'Authentication or authorization issue'
+              },
+              
+              ui: {
+                category: 'technical',
+                priority: 2,
+                keywords: [
+                  'ui', 'visual', 'design', 'layout', 'styling', 'css',
+                  'theme', 'appearance', 'responsive', 'mobile', 'desktop'
+                ],
+                patterns: [
+                  /ui/i,
+                  /visual/i,
+                  /design/i,
+                  /layout/i,
+                  /styling/i,
+                  /css/i,
+                  /theme/i
+                ],
+                description: 'User interface or visual design issue'
+              },
+              
+              ux: {
+                category: 'technical',
+                priority: 2,
+                keywords: [
+                  'ux', 'user experience', 'workflow', 'usability', 'accessibility',
+                  'a11y', 'navigation', 'interaction', 'user flow'
+                ],
+                patterns: [
+                  /ux/i,
+                  /user experience/i,
+                  /usability/i,
+                  /accessibility/i,
+                  /a11y/i,
+                  /workflow/i
+                ],
+                description: 'User experience or usability issue'
+              },
+              
+              // Engineering Categories
+              security: {
+                category: 'engineering',
+                priority: 3,
+                keywords: [
+                  'security', 'vulnerability', 'xss', 'csrf', 'sql injection',
+                  'auth bypass', 'authorization', 'secret', 'credential', 'hack',
+                  'exploit', 'cve', 'injection', 'attack', 'breach'
+                ],
+                patterns: [
+                  /security/i,
+                  /vulnerability/i,
+                  /xss/i,
+                  /csrf/i,
+                  /sql injection/i,
+                  /auth bypass/i,
+                  /secret/i,
+                  /cve/i,
+                  /exploit/i
+                ],
+                description: 'Security vulnerability or concern'
+              },
+              
+              performance: {
+                category: 'engineering',
+                priority: 3,
+                keywords: [
+                  'performance', 'slow', 'latency', 'memory', 'leak',
+                  'optimize', 'optimization', 'speed', 'fast', 'resource',
+                  'cpu', 'load', 'bottleneck', 'scalability'
+                ],
+                patterns: [
+                  /performance/i,
+                  /slow/i,
+                  /latency/i,
+                  /memory leak/i,
+                  /optimization/i,
+                  /speed/i,
+                  /bottleneck/i
+                ],
+                description: 'Performance or scalability issue'
+              },
+              
+              refactor: {
+                category: 'engineering',
+                priority: 3,
+                keywords: [
+                  'refactor', 'cleanup', 'technical debt', 'restructure',
+                  'maintainability', 'code quality', 'simplify', 'reorganize'
+                ],
+                patterns: [
+                  /refactor/i,
+                  /cleanup/i,
+                  /technical debt/i,
+                  /restructure/i,
+                  /maintainability/i,
+                  /code quality/i
+                ],
+                description: 'Code refactoring or cleanup'
+              },
+              
+              dependencies: {
+                category: 'engineering',
+                priority: 3,
+                keywords: [
+                  'dependency', 'package', 'library', 'upgrade', 'update',
+                  'version', 'npm', 'yarn', 'pip', 'maven', 'gradle'
+                ],
+                patterns: [
+                  /dependenc/i,
+                  /package/i,
+                  /library/i,
+                  /upgrade/i,
+                  /update/i,
+                  /version/i
+                ],
+                description: 'Dependency or package management issue'
+              },
+              
+              ci: {
+                category: 'engineering',
+                priority: 3,
+                keywords: [
+                  'ci', 'cd', 'github actions', 'pipeline', 'build', 'deploy',
+                  'workflow', 'automation', 'test', 'continuous integration'
+                ],
+                patterns: [
+                  /ci/i,
+                  /cd/i,
+                  /github action/i,
+                  /pipeline/i,
+                  /build/i,
+                  /deploy/i,
+                  /workflow/i
+                ],
+                description: 'CI/CD or build automation issue'
+              },
+              
+              // Workflow Status
+              triage: {
+                category: 'status',
+                priority: 4,
+                autoApply: false, // Only applied when no other labels match
+                description: 'Issue needs triage'
+              },
+              
+              'needs-review': {
+                category: 'status',
+                priority: 4,
+                autoApply: true,
+                description: 'Issue needs maintainer review'
+              },
+              
+              'in-progress': {
+                category: 'status',
+                priority: 4,
+                autoApply: false, // Applied manually
+                description: 'Issue is being worked on'
+              },
+              
+              blocked: {
+                category: 'status',
+                priority: 4,
+                keywords: [
+                  'blocked', 'waiting', 'dependency', 'blocked by', 'depends on',
+                  'hold', 'stalled', 'waiting for'
+                ],
+                patterns: [
+                  /blocked/i,
+                  /waiting for/i,
+                  /blocked by/i,
+                  /depends on/i,
+                  /on hold/i
+                ],
+                description: 'Issue is blocked by another issue or dependency'
+              },
+              
+              // Community Labels
+              'good first issue': {
+                category: 'community',
+                priority: 5,
+                requiresManualReview: true, // Requires confidence > 90
+                keywords: [
+                  'simple', 'easy', 'small', 'minor', 'quick', 'beginner',
+                  'good first issue', 'starter', 'introductory'
+                ],
+                patterns: [
+                  /good first issue/i,
+                  /simple/i,
+                  /easy/i,
+                  /small/i,
+                  /minor/i,
+                  /quick/i,
+                  /beginner/i
+                ],
+                description: 'Good for newcomers'
+              },
+              
+              'help wanted': {
+                category: 'community',
+                priority: 5,
+                keywords: [
+                  'help wanted', 'community', 'contributions welcome', 'looking for help'
+                ],
+                patterns: [
+                  /help wanted/i,
+                  /contributions welcome/i,
+                  /looking for help/i
+                ],
+                description: 'Help needed from community'
+              },
+              
+              // Resolution Labels
+              duplicate: {
+                category: 'resolution',
+                priority: 6,
+                autoApply: false, // Applied manually
+                description: 'Duplicate of another issue'
+              },
+              
+              wontfix: {
+                category: 'resolution',
+                priority: 6,
+                autoApply: false, // Applied manually
+                description: 'Issue will not be fixed'
+              }
+            };
+            
+            // =============================================================================
+            // CONFLICTING LABELS
+            // =============================================================================
+            // Labels that should not be applied together
+            // =============================================================================
+            
+            const CONFLICTING_LABELS = [
+              ['bug', 'feature', 'enhancement', 'documentation', 'question'], // Core types - mutually exclusive
+              ['duplicate', 'wontfix'], // Resolution labels
+              ['triage', 'needs-review', 'in-progress', 'blocked'], // Status labels
+            ];
+            
+            // =============================================================================
+            // UTILITY FUNCTIONS
+            // =============================================================================
+            
+            /**
+             * Log message with timestamp
+             */
+            function log(message, level = 'info') {
+              const timestamp = new Date().toISOString();
+              const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
+              console.log(`${prefix} ${message}`);
+            }
+            
+            /**
+             * Calculate confidence score for a label based on issue content
+             */
+            function calculateConfidence(label, issue) {
+              const labelConfig = LABELS[label];
+              if (!labelConfig) return 0;
+              
+              let score = 0;
+              let maxScore = 0;
+              
+              // Combine title and body for analysis
+              const content = `${issue.title} ${issue.body || ''}`.toLowerCase();
+              
+              // Check keyword matches
+              if (labelConfig.keywords) {
+                maxScore += labelConfig.keywords.length * 20;
+                labelConfig.keywords.forEach(keyword => {
+                  if (content.includes(keyword.toLowerCase())) {
+                    score += 20;
+                  }
+                });
+              }
+              
+              // Check pattern matches
+              if (labelConfig.patterns) {
+                maxScore += labelConfig.patterns.length * 30;
+                labelConfig.patterns.forEach(pattern => {
+                  if (pattern.test(content)) {
+                    score += 30;
+                  }
+                });
+              }
+              
+              // Check if label is in title (higher weight)
+              if (issue.title.toLowerCase().includes(label.toLowerCase())) {
+                score += 25;
+                maxScore += 25;
+              }
+              
+              // Normalize score to 0-100
+              if (maxScore > 0) {
+                score = Math.min(100, (score / maxScore) * 100);
+              }
+              
+              return Math.round(score);
+            }
+            
+            /**
+             * Check if labels conflict
+             */
+            function labelsConflict(label1, label2) {
+              for (const group of CONFLICTING_LABELS) {
+                if (group.includes(label1) && group.includes(label2)) {
+                  return true;
+                }
+              }
+              return false;
+            }
+            
+            /**
+             * Resolve conflicting labels by keeping the highest confidence
+             */
+            function resolveConflicts(labelScores) {
+              const resolved = {};
+              
+              for (const [label, score] of Object.entries(labelScores)) {
+                let shouldAdd = true;
+                
+                // Check for conflicts with existing labels
+                for (const existingLabel of Object.keys(resolved)) {
+                  if (labelsConflict(label, existingLabel)) {
+                    // Keep the one with higher confidence
+                    if (score > resolved[existingLabel]) {
+                      delete resolved[existingLabel];
+                    } else {
+                      shouldAdd = false;
+                    }
+                  }
+                }
+                
+                if (shouldAdd && score >= CONFIG.confidenceThreshold) {
+                  resolved[label] = score;
+                }
+              }
+              
+              return resolved;
+            }
+            
+            /**
+             * Fetch issues with pagination and rate limit handling
+             */
+            async function fetchIssues() {
+              const issues = [];
+              let page = 1;
+              const perPage = 100;
+              
+              // Build query parameters
+              let query = 'is:open is:issue';
+              
+              if (CONFIG.since) {
+                query += ` created:>${CONFIG.since}`;
+              }
+              
+              log(`Fetching issues with query: ${query}`);
+              
+              while (true) {
+                try {
+                  // Check rate limit before making request
+                  const rateLimit = await github.rest.rateLimit.get();
+                  const remaining = rateLimit.data.resources.core.remaining;
+                  
+                  if (remaining < 10) {
+                    const resetTime = new Date(rateLimit.data.resources.core.reset * 1000);
+                    const waitTime = resetTime - new Date();
+                    log(`Rate limit low (${remaining} remaining). Waiting until ${resetTime.toISOString()}`, 'warn');
+                    
+                    if (waitTime > 0) {
+                      await new Promise(resolve => setTimeout(resolve, waitTime));
+                    }
+                  }
+                  
+                  const response = await github.rest.issues.listForRepo({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    state: 'open',
+                    per_page: perPage,
+                    page: page,
+                    q: query,
+                    sort: 'created',
+                    direction: 'desc'
+                  });
+                  
+                  if (response.data.length === 0) {
+                    break;
+                  }
+                  
+                  issues.push(...response.data);
+                  log(`Fetched ${response.data.length} issues (page ${page})`);
+                  
+                  // Check if we've reached the limit
+                  if (CONFIG.limit > 0 && issues.length >= CONFIG.limit) {
+                    log(`Reached limit of ${CONFIG.limit} issues`);
+                    break;
+                  }
+                  
+                  page++;
+                  
+                  // Small delay to avoid rate limiting
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                  
+                } catch (error) {
+                  log(`Error fetching issues: ${error.message}`, 'error');
+                  
+                  // Retry logic
+                  if (page <= CONFIG.maxRetries) {
+                    log(`Retrying (attempt ${page}/${CONFIG.maxRetries})`, 'warn');
+                    await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelay));
+                    continue;
+                  } else {
+                    throw error;
+                  }
+                }
+              }
+              
+              return issues;
+            }
+            
+            /**
+             * Apply labels to an issue
+             */
+            async function applyLabels(issueNumber, labels) {
+              if (CONFIG.dryRun) {
+                log(`[DRY RUN] Would apply labels to #${issueNumber}: ${labels.join(', ')}`);
+                return;
+              }
+              
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: labels
+                });
+                
+                log(`Applied labels to #${issueNumber}: ${labels.join(', ')}`);
+              } catch (error) {
+                log(`Error applying labels to #${issueNumber}: ${error.message}`, 'error');
+              }
+            }
+            
+            /**
+             * Remove a label from an issue
+             */
+            async function removeLabel(issueNumber, label) {
+              if (CONFIG.dryRun) {
+                log(`[DRY RUN] Would remove label "${label}" from #${issueNumber}`);
+                return;
+              }
+              
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  name: label
+                });
+                
+                log(`Removed label "${label}" from #${issueNumber}`);
+              } catch (error) {
+                // Ignore error if label doesn't exist
+                if (error.status !== 404) {
+                  log(`Error removing label from #${issueNumber}: ${error.message}`, 'error');
+                }
+              }
+            }
+            
+            // =============================================================================
+            // MAIN CLASSIFICATION LOGIC
+            // =============================================================================
+            
+            async function main() {
+              log('=== Auto Label Issues Workflow Started ===');
+              log(`Configuration: ${JSON.stringify({
+                dryRun: CONFIG.dryRun,
+                limit: CONFIG.limit,
+                since: CONFIG.since,
+                removeTriage: CONFIG.removeTriage,
+                confidenceThreshold: CONFIG.confidenceThreshold
+              })}`);
+              
+              // Fetch issues
+              const issues = await fetchIssues();
+              log(`Total issues to process: ${issues.length}`);
+              
+              let processedCount = 0;
+              let labeledCount = 0;
+              let skippedCount = 0;
+              
+              for (const issue of issues) {
+                processedCount++;
+                
+                log(`\n--- Processing Issue #${issue.number}: ${issue.title.substring(0, 50)}... ---`);
+                
+                // Get existing labels
+                const existingLabels = issue.labels.map(l => l.name.toLowerCase());
+                log(`Existing labels: ${existingLabels.join(', ')}`);
+                
+                // Calculate confidence scores for all labels
+                const labelScores = {};
+                
+                for (const labelName of Object.keys(LABELS)) {
+                  const labelConfig = LABELS[labelName];
+                  
+                  // Skip labels that shouldn't be auto-applied
+                  if (labelConfig.autoApply === false) {
+                    continue;
+                  }
+                  
+                  // Skip labels that require manual review if confidence is not high enough
+                  if (labelConfig.requiresManualReview) {
+                    const confidence = calculateConfidence(labelName, issue);
+                    if (confidence < 90) {
+                      continue;
+                    }
+                  }
+                  
+                  // Skip if label already exists
+                  if (existingLabels.includes(labelName.toLowerCase())) {
+                    log(`Label "${labelName}" already exists, skipping`);
+                    continue;
+                  }
+                  
+                  const confidence = calculateConfidence(labelName, issue);
+                  if (confidence > 0) {
+                    labelScores[labelName] = confidence;
+                    log(`Label "${labelName}" confidence: ${confidence}%`);
+                  }
+                }
+                
+                // Resolve conflicts
+                const resolvedLabels = resolveConflicts(labelScores);
+                log(`Resolved labels: ${Object.keys(resolvedLabels).join(', ')}`);
+                
+                // Sort by confidence and priority
+                const sortedLabels = Object.entries(resolvedLabels)
+                  .sort((a, b) => {
+                    // First by priority (lower = higher priority)
+                    const priorityA = LABELS[a[0]].priority;
+                    const priorityB = LABELS[b[0]].priority;
+                    if (priorityA !== priorityB) {
+                      return priorityA - priorityB;
+                    }
+                    // Then by confidence (higher = better)
+                    return b[1] - a[1];
+                  })
+                  .slice(0, CONFIG.maxLabelsPerIssue)
+                  .map(([label]) => label);
+                
+                log(`Labels to apply: ${sortedLabels.join(', ')}`);
+                
+                // Apply labels
+                if (sortedLabels.length > 0) {
+                  await applyLabels(issue.number, sortedLabels);
+                  labeledCount++;
+                  
+                  // Remove triage label if configured and not in sorted labels
+                  if (CONFIG.removeTriage && existingLabels.includes('triage') && !sortedLabels.includes('triage')) {
+                    await removeLabel(issue.number, 'triage');
+                  }
+                } else {
+                  log('No labels to apply (confidence below threshold)');
+                  skippedCount++;
+                  
+                  // Apply triage label if no other labels matched
+                  if (!existingLabels.includes('triage') && LABELS.triage.autoApply !== false) {
+                    await applyLabels(issue.number, ['triage']);
+                  }
+                }
+                
+                // Log summary for this issue
+                log(`Issue #${issue.number} summary:`, 'info');
+                log(`  - Detected categories: ${Object.keys(labelScores).join(', ')}`);
+                log(`  - Confidence scores: ${JSON.stringify(labelScores)}`);
+                log(`  - Labels applied: ${sortedLabels.join(', ') || 'none'}`);
+              }
+              
+              // Final summary
+              log('\n=== Workflow Summary ===');
+              log(`Total issues processed: ${processedCount}`);
+              log(`Issues labeled: ${labeledCount}`);
+              log(`Issues skipped: ${skippedCount}`);
+              log(`Dry run mode: ${CONFIG.dryRun}`);
+              log('=== Auto Label Issues Workflow Completed ===');
+            }
+            
+            // Run the main function
+            await main().catch(error => {
+              log(`Workflow failed: ${error.message}`, 'error');
+              console.error(error);
+              process.exit(1);
+            });
