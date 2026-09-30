@@ -56,7 +56,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       
       - name: Auto Label Issues
         uses: actions/github-script@v7
