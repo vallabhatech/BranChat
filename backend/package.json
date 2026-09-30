@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "validate": "ts-node -r tsconfig-paths/register src/scripts/validate-config.ts",
-    "validate:system": "ts-node -r tsconfig-paths/register src/scripts/validate_system.ts"
+    "validate:system": "ts-node -r tsconfig-paths/register src/scripts/validate_system.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.11.0",
